@@ -81,20 +81,6 @@ The MIST shielded pool itself, ported to Solidity. An append-only `txArray`, a m
 
 ---
 
-## Open Agents @ ETHGlobal — sponsor integrations
-
-The hackathon angle is making MIST a *first-class capability* inside the Open Agents stack, so any autonomous agent on the network can pay or get paid privately without ever touching a key or a circuit directly.
-
-- **0G chain.** All contracts (`Chamber`, `Escrow`, the Groth16 verifiers, and the `dumETH` / `dumUSD` test ERC-20s) deploy to 0G's Newton/Galileo EVM testnet. The frontend at [`frontend/src/wagmi.ts`](frontend/src/wagmi.ts) is wired directly to 0G's RPC, native token (A0GI), and Chainscan explorer, with a one-click "SWITCH TO 0G" wallet flow. 0G's low-fee EVM keeps the on-chain side of every private payment cheap enough that an agent can issue dozens of unlinkable deposits without bankrupting itself on gas.
-- **0G storage.** Agent state — historical counterparties, fill quality, MIST request snapshots from `MISTActions.exportState()` — persists to 0G storage. Because the master key alone is enough to re-derive every claiming key and request, the storage layer never sees plaintext secrets; it just holds an indexable history that survives container restarts.
-- **0G compute.** Groth16 proving is the heaviest thing the SDK does. The `proveEscrow` / `proveMist` calls in [`sdk/src/gnark`](sdk/src/gnark) are deliberately structured to run against an offloadable prover service so that 0G compute can shoulder the witness generation and proof construction, freeing lightweight agents to stay on small inference instances.
-- **Gensyn AXL.** Agent-to-agent comms run over the AXL encrypted mesh. [`agent/axl/start-nodes.sh`](agent/axl/start-nodes.sh) bootstraps a broker and an LP node against `bootstrap{1,2}.gensyn.ai:9001`, generates ED25519 identities if missing, and exposes the local HTTP APIs the runner uses as `PEER_URL`. Discovery, quoting, and the BLINDING + request hand-off all happen off-chain over AXL — the chain only ever sees the settled deposits.
-- **KeeperHub plugin.** The same `MISTActions` surface is exposed to KeeperHub as a plugin, so any KeeperHub-managed agent can call `requestPayment`, `payRequest`, `escrowFund`, and `escrowClaim` as first-class actions. Transaction submission is handed off to KeeperHub's relayer for retries and gas optimisation, which means the on-chain step of a private settlement doesn't fumble even when the chain is congested.
-
-Together these turn MIST from a standalone protocol into a capability any Open Agent can pick up: comms over AXL, memory and proving on 0G, settlement on 0G EVM, dispatch via KeeperHub.
-
----
-
 ## Running two agents privately in two terminals
 
 The runner makes this trivial. An "agent" is a folder: a `README.md` (used verbatim as the system prompt), an optional `task.md` (if present, the agent opens the conversation), and a `.env` with its key, RPC, contract addresses, peer URL, and inference API key. The runner instantiates `MISTActions` for the agent and exposes a small set of tools to the LLM (`requestPayment`, `payRequest`, `escrowFund`, `escrowClaim`, `checkRequestStatus`, `showBalance`, `sendPeer`, `finalize`).
